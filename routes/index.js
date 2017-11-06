@@ -24,7 +24,7 @@ router.get('/', function (req, res, next) {
     // var orderBy = params.query.orderBy
   // 从连接池获取连接 
   pool.getConnection(function (err, connection) {
-    if (err) throw err;
+    if (err) return err;
     // 获取前台页面传过来的参数  
     var params = urllib.parse(req.url, true);
     var query = params.query;
@@ -49,11 +49,16 @@ router.get('/', function (req, res, next) {
     if (filterBy) { // 若有搜索(默认使用)
       // filterBy处理
       var filterStr = filterBy.split(';').map(function(item) {
-        return item.split('|')[0] + ' = "' + item.split('|')[2] + '"'
+        return item.split('|')[0] + ' LIKE "%' + item.split('|')[2] + '%"'
       }).join(' OR ')
-      // 查询
+      // 查询页数
       connection.query(dataSQL.queryAll+ ' WHERE ' + filterStr, [], function(err, rows, fields) {
-        if (err) throw err;
+        if (err) return err;
+        data.data.recordsFiltered = rows.length
+      })
+      // 查询
+      connection.query(dataSQL.queryAll+ ' WHERE ' + filterStr + ' ORDER BY updateTime DESC LIMIT ' + pageIndex + ',' + pageSize, [], function(err, rows, fields) {
+        if (err) return err;
         data.data.data = rows
         // 输出data的内容
         res.end(JSON.stringify(data));
@@ -62,7 +67,7 @@ router.get('/', function (req, res, next) {
       })
     } else {
       connection.query(dataSQL.queryLimit, [pageIndex, pageSize], function(err, rows, fields) {
-       if (err) throw err;
+       if (err) return err;
         data.data.data = rows
         // 输出data的内容
         res.end(JSON.stringify(data));
